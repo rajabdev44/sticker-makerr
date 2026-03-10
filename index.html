@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Sticker Maker</title>
+
+<style>
+
+:root{
+--primary:#6c5ce7;
+--secondary:#a29bfe;
+--bg:#dfe6e9;
+--card-bg:#ffffff;
+}
+
+body{
+font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+background:var(--bg);
+margin:0;
+display:flex;
+justify-content:center;
+align-items:center;
+min-height:100vh;
+}
+
+.container{
+background:var(--card-bg);
+padding:2rem;
+border-radius:20px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+display:flex;
+flex-direction:column;
+align-items:center;
+max-width:900px;
+width:90%;
+}
+
+h1{
+color:var(--primary);
+margin-bottom:1.5rem;
+}
+
+.workspace{
+display:flex;
+flex-wrap:wrap;
+gap:2rem;
+justify-content:center;
+width:100%;
+}
+
+.preview-area{
+position:relative;
+border:2px dashed #ccc;
+border-radius:10px;
+overflow:hidden;
+
+background-image:
+linear-gradient(45deg,#eee 25%,transparent 25%),
+linear-gradient(-45deg,#eee 25%,transparent 25%),
+linear-gradient(45deg,transparent 75%,#eee 75%),
+linear-gradient(-45deg,transparent 75%,#eee 75%);
+
+background-size:20px 20px;
+background-position:0 0,0 10px,10px -10px,-10px 0;
+}
+
+canvas{
+display:block;
+max-width:100%;
+}
+
+.controls{
+display:flex;
+flex-direction:column;
+gap:1rem;
+min-width:250px;
+}
+
+.control-group{
+display:flex;
+flex-direction:column;
+gap:.4rem;
+}
+
+label{
+font-weight:bold;
+font-size:.9rem;
+color:#555;
+}
+
+input,select{
+padding:10px;
+border-radius:8px;
+border:1px solid #ddd;
+font-size:1rem;
+}
+
+button{
+background:var(--primary);
+color:white;
+border:none;
+padding:12px;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold;
+transition:.3s;
+}
+
+button:hover{
+background:#5649c0;
+}
+
+.secondary{
+background:#b2bec3;
+}
+
+.secondary:hover{
+background:#636e72;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>✨ Free Sticker Maker</h1>
+
+<div class="workspace">
+
+<div class="controls">
+
+<div class="control-group">
+<label>1. Upload Image</label>
+<input type="file" id="imageUpload" accept="image/*">
+</div>
+
+<div class="control-group">
+<label>Add Text</label>
+<input type="text" id="textInput" placeholder="Type text...">
+</div>
+
+<div class="control-group">
+<label>Add Emoji</label>
+<input type="text" id="emojiInput" placeholder="😀🔥❤️">
+</div>
+
+<div class="control-group">
+<label>Text Color</label>
+<input type="color" id="textColor" value="#ffffff">
+</div>
+
+<div class="control-group">
+<label>Text Size</label>
+<input type="range" id="textSize" min="10" max="120" value="40">
+</div>
+
+<div class="control-group">
+<label>Font</label>
+<select id="fontSelect">
+<option value="Arial">Arial</option>
+<option value="Impact">Impact</option>
+<option value="Comic Sans MS">Comic</option>
+<option value="Verdana">Verdana</option>
+</select>
+</div>
+
+<div class="control-group">
+<label>Sticker Border</label>
+<select id="borderSelect">
+<option value="white">White Border</option>
+<option value="black">Black Border</option>
+<option value="none">No Border</option>
+</select>
+</div>
+
+<button id="downloadBtn">Download Sticker</button>
+<button id="resetBtn" class="secondary">Reset</button>
+
+</div>
+
+
+<div class="preview-area">
+<canvas id="stickerCanvas" width="400" height="400"></canvas>
+</div>
+
+</div>
+</div>
+
+<script>
+
+const canvas=document.getElementById("stickerCanvas")
+const ctx=canvas.getContext("2d")
+
+const imageUpload=document.getElementById("imageUpload")
+const textInput=document.getElementById("textInput")
+const emojiInput=document.getElementById("emojiInput")
+const textColor=document.getElementById("textColor")
+const textSize=document.getElementById("textSize")
+const borderSelect=document.getElementById("borderSelect")
+const fontSelect=document.getElementById("fontSelect")
+const downloadBtn=document.getElementById("downloadBtn")
+const resetBtn=document.getElementById("resetBtn")
+
+let uploadedImage=null
+
+let textX=200
+let textY=200
+let isDragging=false
+
+
+draw()
+
+imageUpload.addEventListener("change",handleImageUpload)
+textInput.addEventListener("input",draw)
+emojiInput.addEventListener("input",draw)
+textColor.addEventListener("input",draw)
+textSize.addEventListener("input",draw)
+borderSelect.addEventListener("change",draw)
+fontSelect.addEventListener("change",draw)
+
+resetBtn.addEventListener("click",resetCanvas)
+
+canvas.addEventListener("mousedown",()=>isDragging=true)
+
+canvas.addEventListener("mouseup",()=>isDragging=false)
+
+canvas.addEventListener("mousemove",(e)=>{
+
+if(!isDragging)return
+
+const rect=canvas.getBoundingClientRect()
+
+textX=e.clientX-rect.left
+textY=e.clientY-rect.top
+
+draw()
+
+})
+
+function handleImageUpload(e){
+
+const reader=new FileReader()
+
+reader.onload=function(event){
+
+const img=new Image()
+
+img.onload=function(){
+
+uploadedImage=img
+
+resizeCanvasToFit(img)
+
+textX=canvas.width/2
+textY=canvas.height/2
+
+draw()
+
+}
+
+img.src=event.target.result
+
+}
+
+if(e.target.files[0])reader.readAsDataURL(e.target.files[0])
+
+}
+
+
+function resizeCanvasToFit(img){
+
+let width=img.width
+let height=img.height
+const maxSize=400
+
+if(width>height){
+
+if(width>maxSize){
+
+height*=maxSize/width
+width=maxSize
+
+}
+
+}
+
+else{
+
+if(height>maxSize){
+
+width*=maxSize/height
+height=maxSize
+
+}
+
+}
+
+canvas.width=width
+canvas.height=height
+
+}
+
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+if(uploadedImage){
+
+ctx.drawImage(uploadedImage,0,0,canvas.width,canvas.height)
+
+}else{
+
+ctx.fillStyle="#ccc"
+ctx.font="20px Arial"
+ctx.textAlign="center"
+ctx.fillText("Upload an image",canvas.width/2,canvas.height/2)
+
+}
+
+
+const text=textInput.value
+const emoji=emojiInput.value
+
+if(text||emoji){
+
+ctx.font=`bold ${textSize.value}px ${fontSelect.value}`
+ctx.fillStyle=textColor.value
+ctx.textAlign="center"
+ctx.textBaseline="middle"
+
+ctx.shadowColor="rgba(0,0,0,0.5)"
+ctx.shadowBlur=4
+ctx.shadowOffsetX=2
+ctx.shadowOffsetY=2
+
+ctx.fillText(text+" "+emoji,textX,textY)
+
+ctx.shadowColor="transparent"
+
+}
+
+
+const border=borderSelect.value
+
+if(border!=="none"){
+
+ctx.lineWidth=10
+ctx.strokeStyle=border
+
+ctx.beginPath()
+ctx.roundRect(0,0,canvas.width,canvas.height,25)
+ctx.stroke()
+
+}
+
+}
+
+
+function downloadSticker(){
+
+if(!uploadedImage){
+
+alert("Upload an image first!")
+
+return
+
+}
+
+const link=document.createElement("a")
+
+link.download="my-sticker.png"
+
+link.href=canvas.toDataURL("image/png")
+
+link.click()
+
+}
+
+
+function resetCanvas(){
+
+uploadedImage=null
+textInput.value=""
+emojiInput.value=""
+imageUpload.value=""
+
+canvas.width=400
+canvas.height=400
+
+textX=200
+textY=200
+
+draw()
+
+}
+
+downloadBtn.addEventListener("click",downloadSticker)
+
+</script>
+
+</body>
+</html>
